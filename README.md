@@ -183,6 +183,20 @@ We welcome contributions to the fit-parser-swift project! If you'd like to contr
 - Clearly describe the issue, including steps to reproduce for bugs.
 - Check if the issue has already been reported before creating a new one.
 
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/latishab/fit-parser-swift/blob/main/LICENSE) file for the full license text.
+
+Copyright (c) [year] [your name]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the conditions specified in the LICENSE file.
+
+### FIT Protocol Notice
+
+This parser is based on the Flexible and Interoperable Data Transfer (FIT) Protocol, which is subject to the [FIT Protocol License Agreement](https://developer.garmin.com/fit/download/) by Garmin International, Inc. Users of this parser must comply with the terms of that agreement.
+
+Users are responsible for ensuring their use of this parser complies with both the MIT License and the FIT Protocol License Agreement.
+
 ## Acknowledgments
 
 - Thanks to Garmin for providing the FIT Objective-C SDK
