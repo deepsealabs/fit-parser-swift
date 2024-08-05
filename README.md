@@ -1,6 +1,6 @@
 # FIT-Parser Swift
 
-DiveDataParser is a Swift package for parsing and displaying dive data from FIT files. It provides structures for organizing dive data and a SwiftUI view for displaying the parsed information.
+fit-parser-swift is a Swift package for parsing and displaying dive data from FIT files. It provides structures for organizing dive data and a SwiftUI view for displaying the parsed information.
 
 ## Features
 
@@ -12,7 +12,7 @@ DiveDataParser is a Swift package for parsing and displaying dive data from FIT 
 
 ### Swift Package Manager
 
-To integrate DiveDataParser into your Xcode project using Swift Package Manager, add it to the dependencies value of your `Package.swift`:
+To integrate fit-parser-swift into your Xcode project using Swift Package Manager, add it to the dependencies value of your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -32,7 +32,7 @@ targets: [
 
 ### Manual Installation
 
-1. Download the DiveDataParser package
+1. Download the fit-parser-swift package
 2. Drag and drop the package folder into your Xcode project
 3. Make sure to select "Copy items if needed" and choose the targets where you want to use the package
 
