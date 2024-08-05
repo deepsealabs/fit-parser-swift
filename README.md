@@ -2,6 +2,8 @@
 
 fit-parser-swift is a Swift package for parsing and displaying dive data from FIT files. It provides structures for organizing dive data and includes a SwiftUI view for displaying the parsed information.
 
+current fit-parser-swift supports FIT 21.141.0
+
 ## Features
 
 - Parse FIT files containing dive data
@@ -187,7 +189,7 @@ We welcome contributions to the fit-parser-swift project! If you'd like to contr
 
 This project is licensed under the MIT License. See the [LICENSE](https://github.com/latishab/fit-parser-swift/blob/main/LICENSE) file for the full license text.
 
-Copyright (c) [year] [your name]
+Copyright (c) 2024 Latisha Besariani Hendra.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the conditions specified in the LICENSE file.
 
