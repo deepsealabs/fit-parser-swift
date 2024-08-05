@@ -1,5 +1,6 @@
 import Foundation
 import ObjcFIT
+import SwiftFIT
 
 public struct FITParser {
     public let session: SessionData
@@ -9,51 +10,60 @@ public struct FITParser {
     public let tankUpdates: [TankUpdateData]
     
     public struct SessionData {
-        let startTime: Date?
-        let startCoordinates: (latitude: Double, longitude: Double)?
-        let endCoordinates: (latitude: Double, longitude: Double)?
-        let maxTemperature: Float?
-        let minTemperature: Float?
-        let avgTemperature: Float?
-        let totalElapsedTime: Float?
-        let maxDepth: Float?
-        let diveNumber: UInt16?
+        public let startTime: Date?
+        public let startCoordinates: (latitude: Double, longitude: Double)?
+        public let endCoordinates: (latitude: Double, longitude: Double)?
+        public let maxTemperature: Float?
+        public let minTemperature: Float?
+        public let avgTemperature: Float?
+        public let totalElapsedTime: Float?
+        public let maxDepth: Float?
+        public let diveNumber: UInt16?
     }
     
     public struct SummaryData {
-        let timestamp: Date?
-        let diveNumber: UInt16?
-        let maxDepth: Float?
-        let surfaceInterval: UInt32?
-        let bottomTime: Float?
-        let avgDepth: Float?
-        let descentTime: Float?
-        let ascentTime: Float?
+        public let timestamp: Date?
+        public let diveNumber: UInt16?
+        public let maxDepth: Float?
+        public let surfaceInterval: UInt32?
+        public let descentTime: Float?
+        public let ascentTime: Float?
+        public let bottomTime: UInt32?
+        
+        public init(timestamp: Date?, diveNumber: UInt16?, maxDepth: Float?, surfaceInterval: UInt32?, descentTime: Float?, ascentTime: Float?, bottomTime: UInt32?) {
+            self.timestamp = timestamp
+            self.diveNumber = diveNumber
+            self.maxDepth = maxDepth
+            self.surfaceInterval = surfaceInterval
+            self.descentTime = descentTime
+            self.ascentTime = ascentTime
+            self.bottomTime = bottomTime
+        }
     }
     
     public struct SettingsData {
-        let waterType: String?
-        let waterDensity: Float?
-        let gfLow: UInt8?
-        let gfHigh: UInt8?
-        let po2Warn: Float?
-        let po2Critical: Float?
-        let safetyStopEnabled: Bool?
-        let bottomDepth: Float?
+        public let waterType: String?
+        public let waterDensity: Float?
+        public let gfLow: UInt8?
+        public let gfHigh: UInt8?
+        public let po2Warn: Float?
+        public let po2Critical: Float?
+        public let safetyStopEnabled: Bool?
+        public let bottomDepth: Float?
     }
     
     public struct TankSummaryData {
-        let timestamp: Date?
-        let sensor: UInt32?
-        let startPressure: Float?
-        let endPressure: Float?
-        let volumeUsed: Float?
+        public let timestamp: Date?
+        public let sensor: UInt32?
+        public let startPressure: Float?
+        public let endPressure: Float?
+        public let volumeUsed: Float?
     }
     
     public struct TankUpdateData {
-        let timestamp: Date?
-        let sensor: UInt32?
-        let pressure: Float?
+        public let timestamp: Date?
+        public let sensor: UInt32?
+        public let pressure: Float?
     }
     
     private init(session: FITSessionMesg, summary: FITDiveSummaryMesg, settings: FITDiveSettingsMesg, tankSummaries: [FITTankSummaryMesg], tankUpdates: [FITTankUpdateMesg]) {
@@ -78,13 +88,12 @@ public struct FITParser {
             diveNumber: summary.isDiveNumberValid() ? UInt16(summary.getDiveNumber()) : nil,
             maxDepth: summary.isMaxDepthValid() ? summary.getMaxDepth() : nil,
             surfaceInterval: summary.isSurfaceIntervalValid() ? summary.getSurfaceInterval() : nil,
-            bottomTime: summary.isBottomTimeValid() ? summary.getBottomTime() : nil,
-            avgDepth: summary.isAvgDepthValid() ? summary.getAvgDepth() : nil,
             descentTime: summary.isDescentTimeValid() ? summary.getDescentTime() : nil,
-            ascentTime: summary.isAscentTimeValid() ? summary.getAscentTime() : nil
+            ascentTime: summary.isAscentTimeValid() ? summary.getAscentTime() : nil,
+            bottomTime: session.isTotalElapsedTimeValid() ? UInt32(session.getTotalElapsedTime()) : nil
         )
         
-        let waterType = settings.isWaterTypeValid() ? formatWaterType(settings.getWaterType()) : nil
+        let waterType = settings.isWaterTypeValid() ? FITParser.formatWaterType(settings.getWaterType()) : nil
 
         self.settings = SettingsData(
             waterType: waterType,
@@ -151,5 +160,12 @@ public struct FITParser {
         default:
             return "Unknown"
         }
+    }
+    
+    public static func formatDuration(_ seconds: UInt32) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let remainingSeconds = seconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
     }
 }

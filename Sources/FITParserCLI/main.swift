@@ -1,0 +1,3 @@
+import FITParser
+
+FITParserCLI.main()

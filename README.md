@@ -9,6 +9,7 @@ current fit-parser-swift supports FIT 21.141.0
 - Parse FIT files containing dive data
 - Extract session, summary, settings, tank summaries, and tank updates information
 - Display parsed data in a user-friendly SwiftUI interface
+- Command-line interface for quick parsing and data display
 
 ## Installation
 
@@ -28,7 +29,7 @@ Then, specify it as a dependency of your target:
 targets: [
     .target(
         name: "YourTarget",
-        dependencies: ["FITParserSwift"]),
+        dependencies: ["FITParser"]),
 ]
 ```
 
@@ -36,10 +37,12 @@ The Garmin FIT Objective-C SDK is included as a dependency in this package, so y
 
 ## Usage
 
+### As a Library
+
 1. Import the package in your Swift file:
 
 ```swift
-import FITParserSwift
+import FITParser
 ```
 
 2. Use the `FITParser.parse(fitFilePath:)` method to parse FIT files:
@@ -69,56 +72,15 @@ let tankUpdates = fitData.tankUpdates
    - How to handle success and error cases
    - How to display all the parsed data in a SwiftUI view
 
-## Example
+### As a Command-Line Tool
 
-Here's a simplified example of how to use the `FITParser` in a SwiftUI view:
+You can use the `FITParserCLI` command-line tool to quickly parse and display FIT file data. To run the tool:
 
-```swift
-import SwiftUI
-import FITParserSwift
-
-struct ContentView: View {
-    @State private var fitData: FITParser?
-    @State private var errorMessage: String?
-    
-    var body: some View {
-        VStack {
-            Button("Parse FIT File") {
-                parseFITFile()
-            }
-            
-            if let fitData = fitData {
-                Text("Dive Number: \(fitData.summary.diveNumber ?? 0)")
-                Text("Max Depth: \(fitData.summary.maxDepth ?? 0) m")
-                // Display more data as needed
-            }
-            
-            if let errorMessage = errorMessage {
-                Text("Error: \(errorMessage)")
-                    .foregroundColor(.red)
-            }
-        }
-    }
-    
-    private func parseFITFile() {
-        guard let fileURL = Bundle.main.url(forResource: "TestDive", withExtension: "fit") else {
-            self.errorMessage = "Failed to find TestDive.fit file in bundle"
-            return
-        }
-        
-        switch FITParser.parse(fitFilePath: fileURL.path) {
-        case .success(let parsedFitData):
-            self.fitData = parsedFitData
-            self.errorMessage = nil
-        case .failure(let error):
-            self.errorMessage = error.localizedDescription
-            self.fitData = nil
-        }
-    }
-}
+```bash
+.build/debug/FITParserCLI path/to/your/file.fit
 ```
 
-For a more comprehensive example, please refer to the `ContentView.swift` file in the package.
+This will print the parsed data to the console.
 
 ## Requirements
 

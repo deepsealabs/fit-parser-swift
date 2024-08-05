@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "FIT",
+        "repositoryURL": "https://github.com/garmin/fit-objective-c-sdk.git",
+        "state": {
+          "branch": null,
+          "revision": "bb0b74c948586f88184ab8f43eee7201c406edb7",
+          "version": "21.141.0"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

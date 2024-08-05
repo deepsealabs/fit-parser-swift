@@ -1,5 +1,4 @@
 import SwiftUI
-import FITParser
 
 struct ContentView: View {
     @State private var fitData: FITParser?
@@ -94,10 +93,7 @@ struct ContentView: View {
                 Text("Surface Interval: \(formatDuration(surfaceInterval))")
             }
             if let bottomTime = summary.bottomTime {
-                Text("Bottom Time: \(formatDuration(UInt32(bottomTime)))")
-            }
-            if let avgDepth = summary.avgDepth {
-                Text("Average Depth: \(String(format: "%.3f", avgDepth)) m")
+                Text("Bottom Time: \(FITParser.formatDuration(bottomTime))")
             }
             if let descentTime = summary.descentTime {
                 Text("Descent Time: \(formatDuration(UInt32(descentTime)))")
