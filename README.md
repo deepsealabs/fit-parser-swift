@@ -1,11 +1,11 @@
 # fit-parser-swift
 
-fit-parser-swift is a Swift package for parsing and displaying dive data from FIT files. It provides structures for organizing dive data and a SwiftUI view for displaying the parsed information.
+fit-parser-swift is a Swift package for parsing and displaying dive data from FIT files. It provides structures for organizing dive data and includes a SwiftUI view for displaying the parsed information.
 
 ## Features
 
 - Parse FIT files containing dive data
-- Extract session, summary, settings, and tank information
+- Extract session, summary, settings, tank summaries, and tank updates information
 - Display parsed data in a user-friendly SwiftUI interface
 
 ## Installation
@@ -32,12 +32,6 @@ targets: [
 
 The Garmin FIT Objective-C SDK is included as a dependency in this package, so you don't need to add it separately.
 
-### Manual Installation
-
-1. Download the fit-parser-swift package
-2. Drag and drop the package folder into your Xcode project
-3. Make sure to select "Copy items if needed" and choose the targets where you want to use the package
-
 ## Usage
 
 1. Import the package in your Swift file:
@@ -46,17 +40,83 @@ The Garmin FIT Objective-C SDK is included as a dependency in this package, so y
 import FITParserSwift
 ```
 
-2. Use the `DiveData` struct to parse FIT files:
+2. Use the `FITParser.parse(fitFilePath:)` method to parse FIT files:
 
 ```swift
-let diveData = DiveData(session: fitSessionMesg, summary: fitDiveSummaryMesg, settings: fitDiveSettingsMesg, tankSummaries: fitTankSummaryMesgs, tankUpdates: fitTankUpdateMesgs)
+let result = FITParser.parse(fitFilePath: "path/to/your/file.fit")
+switch result {
+case .success(let fitData):
+    // Use fitData to access parsed information
+case .failure(let error):
+    print("Error parsing FIT file: \(error)")
+}
 ```
 
-3. Use the `ContentView` to display the parsed data:
+3. Access parsed data through the `FITParser` struct:
 
 ```swift
-ContentView()
+let session = fitData.session
+let summary = fitData.summary
+let settings = fitData.settings
+let tankSummaries = fitData.tankSummaries
+let tankUpdates = fitData.tankUpdates
 ```
+
+4. For a complete example of how to use the parser and display the data, refer to the `ContentView.swift` file in the package. This file demonstrates:
+   - How to trigger the parsing of a FIT file
+   - How to handle success and error cases
+   - How to display all the parsed data in a SwiftUI view
+
+## Example
+
+Here's a simplified example of how to use the `FITParser` in a SwiftUI view:
+
+```swift
+import SwiftUI
+import FITParserSwift
+
+struct ContentView: View {
+    @State private var fitData: FITParser?
+    @State private var errorMessage: String?
+    
+    var body: some View {
+        VStack {
+            Button("Parse FIT File") {
+                parseFITFile()
+            }
+            
+            if let fitData = fitData {
+                Text("Dive Number: \(fitData.summary.diveNumber ?? 0)")
+                Text("Max Depth: \(fitData.summary.maxDepth ?? 0) m")
+                // Display more data as needed
+            }
+            
+            if let errorMessage = errorMessage {
+                Text("Error: \(errorMessage)")
+                    .foregroundColor(.red)
+            }
+        }
+    }
+    
+    private func parseFITFile() {
+        guard let fileURL = Bundle.main.url(forResource: "TestDive", withExtension: "fit") else {
+            self.errorMessage = "Failed to find TestDive.fit file in bundle"
+            return
+        }
+        
+        switch FITParser.parse(fitFilePath: fileURL.path) {
+        case .success(let parsedFitData):
+            self.fitData = parsedFitData
+            self.errorMessage = nil
+        case .failure(let error):
+            self.errorMessage = error.localizedDescription
+            self.fitData = nil
+        }
+    }
+}
+```
+
+For a more comprehensive example, please refer to the `ContentView.swift` file in the package.
 
 ## Requirements
 
@@ -72,10 +132,6 @@ This package includes the following dependency:
 - Garmin FIT Objective-C SDK
 
 You don't need to manually add this dependency to your project.
-
-## License
-
-[Specify your license here]
 
 ## Contributing
 
@@ -126,13 +182,6 @@ We welcome contributions to the fit-parser-swift project! If you'd like to contr
 - Use the GitHub issue tracker to report bugs or suggest features.
 - Clearly describe the issue, including steps to reproduce for bugs.
 - Check if the issue has already been reported before creating a new one.
-
-### Code of Conduct
-
-- Be respectful and inclusive in your interactions with other contributors.
-- We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/0/code_of_conduct/). Please read and adhere to it.
-
-Thank you for contributing to fit-parser-swift! Your efforts help make this project better for everyone.
 
 ## Acknowledgments
 
