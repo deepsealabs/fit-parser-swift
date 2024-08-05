@@ -16,7 +16,7 @@ To integrate fit-parser-swift into your Xcode project using Swift Package Manage
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/fit-parser-swift.git", .upToNextMajor(from: "1.0.0"))
+    .package(url: "https://github.com/latishab/fit-parser-swift.git", .upToNextMajor(from: "1.0.0"))
 ]
 ```
 

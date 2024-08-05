@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:5.3
 import PackageDescription
 
 let package = Package(
@@ -18,7 +18,10 @@ let package = Package(
     targets: [
         .target(
             name: "FITParser",
-            dependencies: ["fit-objective-c-sdk"]),
+            dependencies: [
+                .product(name: "SwiftFIT", package: "fit-objective-c-sdk"),
+                .product(name: "ObjcFIT", package: "fit-objective-c-sdk")
+            ]),
         .testTarget(
             name: "FITParserTests",
             dependencies: ["FITParser"]),
