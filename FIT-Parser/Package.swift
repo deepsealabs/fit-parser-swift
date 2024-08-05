@@ -1,25 +1,26 @@
+// swift-tools-version:5.10
 import PackageDescription
 
 let package = Package(
-    name: "fit-parser-swift",
+    name: "FITParser",
     platforms: [
-        .iOS(.v14),
-        .macOS(.v11)
+        .iOS(.v13),
+        .macOS(.v10_15)
     ],
     products: [
         .library(
-            name: "FITParserSwift",
-            targets: ["FITParserSwift"]),
+            name: "FITParser",
+            targets: ["FITParser"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/garmin/fit-objective-c-sdk.git")
+        .package(url: "https://github.com/garmin/fit-objective-c-sdk.git", from: "21.126.0")
     ],
     targets: [
         .target(
-            name: "FITParserSwift",
+            name: "FITParser",
             dependencies: [.product(name: "ObjcFIT", package: "fit-objective-c-sdk")]),
         .testTarget(
-            name: "FITParserSwiftTests",
-            dependencies: ["FITParserSwift"]),
+            name: "FITParserTests",
+            dependencies: ["FITParser"]),
     ]
 )
