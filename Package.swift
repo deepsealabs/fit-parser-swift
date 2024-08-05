@@ -18,7 +18,7 @@ let package = Package(
     targets: [
         .target(
             name: "FITParser",
-            dependencies: [.product(name: "ObjcFIT", package: "fit-objective-c-sdk")]),
+            dependencies: ["fit-objective-c-sdk"]),
         .testTarget(
             name: "FITParserTests",
             dependencies: ["FITParser"]),
