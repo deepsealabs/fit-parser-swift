@@ -1,30 +1,24 @@
 import SwiftUI
-import ObjcFIT
-import SwiftFIT
+import FITParser
 
 struct ContentView: View {
-    @State private var diveData: DiveData?
+    @State private var fitData: FITParser?
     @State private var errorMessage: String?
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Button("Parse FIT File") {
-                    parseFITFile()
+                    parseFile()
                 }
                 .padding()
                 
-                if let diveData = diveData {
-                    displaySession(diveData.session)
-                    displayDiveSummary(diveData.summary)
-                    displayDiveSettings(diveData.settings)
-                    
-                    ForEach(diveData.tankSummaries, id: \.sensor) { summary in
-                        Text("Tank Summary: Start Pressure: \(summary.startPressure ?? 0), End Pressure: \(summary.endPressure ?? 0)")
-                    }
-                    ForEach(diveData.tankUpdates, id: \.timestamp) { update in
-                        Text("Tank Update: Pressure: \(update.pressure ?? 0)")
-                    }
+                if let fitData = fitData {
+                    displaySession(fitData.session)
+                    displayDiveSummary(fitData.summary)
+                    displayDiveSettings(fitData.settings)
+                    displayTankSummaries(fitData.tankSummaries)
+                    displayTankUpdates(fitData.tankUpdates)
                 }
                 
                 if let errorMessage = errorMessage {
@@ -36,38 +30,24 @@ struct ContentView: View {
         }
     }
     
-    private func parseFITFile() {
-        let decoder = FITDecoder()
-        let listener = FITListener()
-        decoder.mesgDelegate = listener
-        
+    private func parseFile() {
         guard let fileURL = Bundle.main.url(forResource: "TestDive", withExtension: "fit") else {
             self.errorMessage = "Failed to find TestDive.fit file in bundle"
-            self.diveData = nil
+            self.fitData = nil
             return
         }
         
-        print("Attempting to decode file at: \(fileURL.path)")
-        
-        if decoder.decodeFile(fileURL.path) {
-            if let session = listener.messages.getSessionMesgs().first,
-               let summary = listener.messages.getDiveSummaryMesgs().first,
-               let settings = listener.messages.getDiveSettingsMesgs().first {
-                let tankSummaries = listener.messages.getTankSummaryMesgs()
-                let tankUpdates = listener.messages.getTankUpdateMesgs()
-                self.diveData = DiveData(session: session, summary: summary, settings: settings, tankSummaries: tankSummaries, tankUpdates: tankUpdates)
-                self.errorMessage = nil
-            } else {
-                self.errorMessage = "Failed to extract dive data from FIT file"
-                self.diveData = nil
-            }
-        } else {
-            self.errorMessage = "Failed to decode FIT file at path: \(fileURL.path)"
-            self.diveData = nil
+        switch FITParser.parse(fitFilePath: fileURL.path) {
+        case .success(let parsedFitData):
+            self.fitData = parsedFitData
+            self.errorMessage = nil
+        case .failure(let error):
+            self.errorMessage = error.localizedDescription
+            self.fitData = nil
         }
     }
     
-    private func displaySession(_ session: DiveData.SessionData) -> some View {
+    private func displaySession(_ session: FITParser.SessionData) -> some View {
         VStack(alignment: .leading) {
             Text("Session Information").font(.headline)
             if let startTime = session.startTime {
@@ -98,7 +78,7 @@ struct ContentView: View {
         .padding(.bottom)
     }
     
-    private func displayDiveSummary(_ summary: DiveData.SummaryData) -> some View {
+    private func displayDiveSummary(_ summary: FITParser.SummaryData) -> some View {
         VStack(alignment: .leading) {
             Text("Dive Summary").font(.headline)
             if let timestamp = summary.timestamp {
@@ -114,7 +94,7 @@ struct ContentView: View {
                 Text("Surface Interval: \(formatDuration(surfaceInterval))")
             }
             if let bottomTime = summary.bottomTime {
-                Text("Bottom Time: \(formatDuration(bottomTime))")
+                Text("Bottom Time: \(formatDuration(UInt32(bottomTime)))")
             }
             if let avgDepth = summary.avgDepth {
                 Text("Average Depth: \(String(format: "%.3f", avgDepth)) m")
@@ -129,7 +109,7 @@ struct ContentView: View {
         .padding(.bottom)
     }
     
-    private func displayDiveSettings(_ settings: DiveData.SettingsData) -> some View {
+    private func displayDiveSettings(_ settings: FITParser.SettingsData) -> some View {
         VStack(alignment: .leading) {
             Text("Dive Settings").font(.headline)
             if let waterType = settings.waterType {
@@ -160,9 +140,54 @@ struct ContentView: View {
         .padding(.bottom)
     }
     
+    private func displayTankSummaries(_ summaries: [FITParser.TankSummaryData]) -> some View {
+        VStack(alignment: .leading) {
+            Text("Tank Summaries").font(.headline)
+            ForEach(summaries, id: \.sensor) { summary in
+                VStack(alignment: .leading) {
+                    if let sensor = summary.sensor {
+                        Text("Sensor: \(sensor)")
+                    }
+                    if let startPressure = summary.startPressure {
+                        Text("Start Pressure: \(String(format: "%.1f", startPressure)) bar")
+                    }
+                    if let endPressure = summary.endPressure {
+                        Text("End Pressure: \(String(format: "%.1f", endPressure)) bar")
+                    }
+                    if let volumeUsed = summary.volumeUsed {
+                        Text("Volume Used: \(String(format: "%.1f", volumeUsed)) L")
+                    }
+                }
+                .padding(.bottom, 5)
+            }
+        }
+        .padding(.bottom)
+    }
+    
+    private func displayTankUpdates(_ updates: [FITParser.TankUpdateData]) -> some View {
+        VStack(alignment: .leading) {
+            Text("Tank Updates").font(.headline)
+            ForEach(updates, id: \.timestamp) { update in
+                VStack(alignment: .leading) {
+                    if let timestamp = update.timestamp {
+                        Text("Time: \(formatDate(timestamp))")
+                    }
+                    if let sensor = update.sensor {
+                        Text("Sensor: \(sensor)")
+                    }
+                    if let pressure = update.pressure {
+                        Text("Pressure: \(String(format: "%.1f", pressure)) bar")
+                    }
+                }
+                .padding(.bottom, 5)
+            }
+        }
+        .padding(.bottom)
+    }
+    
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd/yyyy hh:mm:ss a"
+        formatter.dateFormat = "MM/dd/yyyy HH:mm:ss"
         return formatter.string(from: date)
     }
     
@@ -171,12 +196,6 @@ struct ContentView: View {
         let minutes = (seconds % 3600) / 60
         let remainingSeconds = seconds % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
-    }
-    
-    private func formatDuration(_ seconds: Float) -> String {
-        let minutes = Int(seconds) / 60
-        let remainingSeconds = Int(seconds) % 60
-        return String(format: "%d:%02d", minutes, remainingSeconds)
     }
     
     private func formatCoordinate(_ coordinate: (latitude: Double, longitude: Double)) -> String {

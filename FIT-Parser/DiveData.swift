@@ -1,14 +1,14 @@
 import Foundation
 import ObjcFIT
 
-struct DiveData {
-    let session: SessionData
-    let summary: SummaryData
-    let settings: SettingsData
-    let tankSummaries: [TankSummaryData]
-    let tankUpdates: [TankUpdateData]
+public struct FITParser {
+    public let session: SessionData
+    public let summary: SummaryData
+    public let settings: SettingsData
+    public let tankSummaries: [TankSummaryData]
+    public let tankUpdates: [TankUpdateData]
     
-    struct SessionData {
+    public struct SessionData {
         let startTime: Date?
         let startCoordinates: (latitude: Double, longitude: Double)?
         let endCoordinates: (latitude: Double, longitude: Double)?
@@ -20,7 +20,7 @@ struct DiveData {
         let diveNumber: UInt16?
     }
     
-    struct SummaryData {
+    public struct SummaryData {
         let timestamp: Date?
         let diveNumber: UInt16?
         let maxDepth: Float?
@@ -31,7 +31,7 @@ struct DiveData {
         let ascentTime: Float?
     }
     
-    struct SettingsData {
+    public struct SettingsData {
         let waterType: String?
         let waterDensity: Float?
         let gfLow: UInt8?
@@ -42,7 +42,7 @@ struct DiveData {
         let bottomDepth: Float?
     }
     
-    struct TankSummaryData {
+    public struct TankSummaryData {
         let timestamp: Date?
         let sensor: UInt32?
         let startPressure: Float?
@@ -50,13 +50,13 @@ struct DiveData {
         let volumeUsed: Float?
     }
     
-    struct TankUpdateData {
+    public struct TankUpdateData {
         let timestamp: Date?
         let sensor: UInt32?
         let pressure: Float?
     }
     
-    init(session: FITSessionMesg, summary: FITDiveSummaryMesg, settings: FITDiveSettingsMesg, tankSummaries: [FITTankSummaryMesg], tankUpdates: [FITTankUpdateMesg]) {
+    private init(session: FITSessionMesg, summary: FITDiveSummaryMesg, settings: FITDiveSettingsMesg, tankSummaries: [FITTankSummaryMesg], tankUpdates: [FITTankUpdateMesg]) {
         self.session = SessionData(
             startTime: session.isStartTimeValid() ? FITDate.date(from: session.getStartTime()) : nil,
             startCoordinates: (session.isStartPositionLatValid() && session.isStartPositionLongValid()) ?
@@ -84,7 +84,7 @@ struct DiveData {
             ascentTime: summary.isAscentTimeValid() ? summary.getAscentTime() : nil
         )
         
-        let waterType = settings.isWaterTypeValid() ? DiveData.formatWaterType(settings.getWaterType()) : nil
+        let waterType = settings.isWaterTypeValid() ? formatWaterType(settings.getWaterType()) : nil
 
         self.settings = SettingsData(
             waterType: waterType,
@@ -114,6 +114,28 @@ struct DiveData {
                 pressure: update.isPressureValid() ? update.getPressure() : nil
             )
         }
+    }
+    
+    public static func parse(fitFilePath: String) -> Result<FITParser, Error> {
+        let decoder = FITDecoder()
+        let listener = FITListener()
+        decoder.mesgDelegate = listener
+        
+        guard decoder.decodeFile(fitFilePath) else {
+            return .failure(NSError(domain: "FITParserError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to decode FIT file"]))
+        }
+        
+        guard let session = listener.messages.getSessionMesgs().first,
+              let summary = listener.messages.getDiveSummaryMesgs().first,
+              let settings = listener.messages.getDiveSettingsMesgs().first else {
+            return .failure(NSError(domain: "FITParserError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to extract data from FIT file"]))
+        }
+        
+        let tankSummaries = listener.messages.getTankSummaryMesgs()
+        let tankUpdates = listener.messages.getTankUpdateMesgs()
+        
+        let fitParser = FITParser(session: session, summary: summary, settings: settings, tankSummaries: tankSummaries, tankUpdates: tankUpdates)
+        return .success(fitParser)
     }
     
     static private func formatWaterType(_ waterType: FITWaterType) -> String {
