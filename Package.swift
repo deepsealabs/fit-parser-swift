@@ -13,7 +13,7 @@ let package = Package(
             targets: ["FITParser"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/garmin/fit-objective-c-sdk.git", from: "21.126.0")
+        .package(url: "https://github.com/garmin/fit-objective-c-sdk.git")
     ],
     targets: [
         .target(
