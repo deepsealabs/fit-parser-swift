@@ -1,166 +1,99 @@
-# fit-parser-swift
+# FIT Parser Swift
 
-fit-parser-swift is a Swift package for parsing and displaying dive data from FIT files. It provides structures for organizing dive data and includes a SwiftUI view for displaying the parsed information.
-
-current fit-parser-swift supports FIT 21.141.0
+A Swift library for parsing Garmin FIT (Flexible and Interoperable Data Transfer) files, specifically focused on dive computer data.
 
 ## Features
 
-- Parse FIT files containing dive data
-- Extract session, summary, settings, tank summaries, and tank updates information
-- Display parsed data in a user-friendly SwiftUI interface
-- Command-line interface for quick parsing and data display
+- Parse FIT files from Garmin dive computers
+- Extract detailed dive information including:
+  - Session data (time, coordinates, temperature, depth)
+  - Dive summary (max depth, surface interval, bottom time)
+  - Dive settings (water type, gradient factors, PO2 limits)
+  - Tank data (pressure, volume)
+  - Dive profile points (depth, temperature, heart rate, tissue loading)
+  - Dive alerts and events
+  - Gas configurations
 
 ## Installation
 
-### Swift Package Manager
-
-To integrate fit-parser-swift into your Xcode project using Swift Package Manager, add it to the dependencies value of your `Package.swift`:
+Add this package to your project using Swift Package Manager:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/latishab/fit-parser-swift.git", .upToNextMajor(from: "1.0.0"))
+    .package(url: "https://github.com/deepsealabs/fit-parser-swift.git", from: "1.2.0")
 ]
 ```
-
-Then, specify it as a dependency of your target:
-
-```swift
-targets: [
-    .target(
-        name: "YourTarget",
-        dependencies: ["FITParser"]),
-]
-```
-
-The Garmin FIT Objective-C SDK is included as a dependency in this package, so you don't need to add it separately.
 
 ## Usage
 
-### As a Library
+### Command Line Interface
 
-1. Import the package in your Swift file:
+```bash
+swift run FITParserCLI path/to/your/dive.fit
+```
+
+### Library Usage
 
 ```swift
 import FITParser
-```
 
-2. Use the `FITParser.parse(fitFilePath:)` method to parse FIT files:
+// Parse a FIT file
+let result = FITParser.parse(fitFilePath: "Sources/FITParser/TestDive4.fit")
 
-```swift
-let result = FITParser.parse(fitFilePath: "path/to/your/file.fit")
 switch result {
 case .success(let fitData):
-    // Use fitData to access parsed information
+    // Access dive data
+    print("Max Depth:", fitData.summary.maxDepth ?? "N/A")
+    print("Dive Time:", FITParser.formatDuration(fitData.session.diveTime ?? 0))
+    
+    // Access dive profile points
+    for point in fitData.divePoints {
+        print("Depth:", point.depth ?? "N/A")
+        print("Temperature:", point.temperature ?? "N/A")
+    }
+    
 case .failure(let error):
-    print("Error parsing FIT file: \(error)")
+    print("Error parsing FIT file:", error)
 }
 ```
 
-3. Access parsed data through the `FITParser` struct:
+## Data Structures
+
+### Main Components
+- `SessionData`: Overall dive session information
+- `SummaryData`: Dive summary statistics
+- `SettingsData`: Dive computer settings
+- `DivePoint`: Individual data points throughout the dive
+- `DiveAlert`: Alerts and events during the dive
+- `DiveGas`: Gas mix configurations
+
+### Example Data Access
 
 ```swift
-let session = fitData.session
-let summary = fitData.summary
-let settings = fitData.settings
-let tankSummaries = fitData.tankSummaries
-let tankUpdates = fitData.tankUpdates
+// Access session data
+let startTime = fitData.session.startTime
+let maxDepth = fitData.session.maxDepth
+let avgTemp = fitData.session.avgTemperature
+
+// Access dive profile
+for point in fitData.divePoints {
+    let depth = point.depth
+    let n2Load = point.n2Load
+    let cnsLoad = point.cnsLoad
+}
+
+// Access alerts
+for alert in fitData.diveAlerts {
+    print("Alert:", alert.event ?? "Unknown")
+    print("Details:", alert.interpretedData ?? "No details")
+}
 ```
-
-4. For a complete example of how to use the parser and display the data, refer to the `ContentView.swift` file in the package. This file demonstrates:
-   - How to trigger the parsing of a FIT file
-   - How to handle success and error cases
-   - How to display all the parsed data in a SwiftUI view
-
-### As a Command-Line Tool
-
-You can use the `FITParserCLI` command-line tool to quickly parse and display FIT file data. To run the tool:
-
-```bash
-.build/debug/FITParserCLI path/to/your/file.fit
-```
-
-This will print the parsed data to the console.
 
 ## Requirements
 
-- iOS 14.0+
-- macOS 11.0+
-- Swift 5.3+
-- Xcode 12.0+
-
-## Dependencies
-
-This package includes the following dependency:
-
-- Garmin FIT Objective-C SDK
-
-You don't need to manually add this dependency to your project.
+- Swift 5.5+
+- macOS 11.0+ / iOS 14.0+
 
 ## Contributing
 
-We welcome contributions to the fit-parser-swift project! If you'd like to contribute, please follow these guidelines:
-
-### Getting Started
-
-1. Fork the repository on GitHub.
-2. Clone your forked repository to your local machine.
-3. Create a new branch for your feature or bug fix.
-
-### Making Changes
-
-1. Make your changes in your feature branch.
-2. Add or update tests as necessary.
-3. Ensure your code follows the Swift style guide and best practices.
-4. Run the existing tests to make sure they still pass.
-5. Add new tests for new functionality.
-
-### Submitting Changes
-
-1. Push your changes to your fork on GitHub.
-2. Submit a pull request to the main fit-parser-swift repository.
-3. In your pull request description, clearly describe the problem you're solving and the proposed solution.
-4. Link any relevant issues in the pull request description.
-
-### Code Style
-
-- Follow the [Swift API Design Guidelines](https://swift.org/documentation/api-design-guidelines/).
-- Use clear, descriptive variable and function names.
-- Comment your code where necessary, especially for complex logic.
-- Keep functions small and focused on a single task.
-
-### Testing
-
-- Write unit tests for new functionality.
-- Ensure all tests pass before submitting a pull request.
-- Aim for high test coverage, especially for critical parts of the code.
-
-### Documentation
-
-- Update the README.md file if you're adding or changing functionality.
-- Use inline documentation for functions and complex code blocks.
-- If you're adding new features, consider updating or creating usage examples.
-
-### Reporting Issues
-
-- Use the GitHub issue tracker to report bugs or suggest features.
-- Clearly describe the issue, including steps to reproduce for bugs.
-- Check if the issue has already been reported before creating a new one.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/latishab/fit-parser-swift/blob/main/LICENSE) file for the full license text.
-
-Copyright (c) 2024 Latisha Besariani Hendra.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the conditions specified in the LICENSE file.
-
-### FIT Protocol Notice
-
-This parser is based on the Flexible and Interoperable Data Transfer (FIT) Protocol, which is subject to the [FIT Protocol License Agreement](https://developer.garmin.com/fit/download/) by Garmin International, Inc. Users of this parser must comply with the terms of that agreement.
-
-Users are responsible for ensuring their use of this parser complies with both the MIT License and the FIT Protocol License Agreement.
-
-## Acknowledgments
-
-- Thanks to Garmin for providing the FIT Objective-C SDK
+Contributions are welcome! Please feel free to submit a Pull Request.
