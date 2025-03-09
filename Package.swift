@@ -24,12 +24,15 @@ let package = Package(
             dependencies: [
                 .product(name: "FIT", package: "fit-objective-c-sdk")
             ],
-            resources: [.process("TestDive.fit")]),
+            resources: [
+                .copy("TestDive.fit"),
+                .copy("TestDive2.fit")
+            ]),
         .target(
             name: "FITParserCLI",
             dependencies: ["FITParser"]),
         .testTarget(
             name: "FITParserTests",
-            dependencies: ["FITParser"]),
+            dependencies: ["FITParser"])
     ]
 )

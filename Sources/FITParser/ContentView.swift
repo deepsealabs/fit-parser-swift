@@ -73,6 +73,36 @@ struct ContentView: View {
             if let diveNumber = session.diveNumber {
                 Text("Dive Number: \(diveNumber)")
             }
+            if let entryType = session.entryType {
+                Text("Entry Type: \(entryType)")
+            }
+            if let diveTime = session.diveTime {
+                Text("Dive Time: \(formatDuration(diveTime))")
+            }
+            if let sport = session.sport {
+                Text("Sport: \(sport)")
+            }
+            if let subSport = session.subSport {
+                Text("Sub Sport: \(subSport)")
+            }
+            if let avgSpeed = session.avgSpeed {
+                Text("Average Speed: \(String(format: "%.2f", avgSpeed)) km/h")
+            }
+            if let avgPosVerticalSpeed = session.avgPosVerticalSpeed {
+                Text("Average Vertical Speed: \(String(format: "%.2f", avgPosVerticalSpeed)) km/h")
+            }
+            if let totalDistance = session.totalDistance {
+                Text("Total Distance: \(String(format: "%.2f", totalDistance)) m")
+            }
+            if let totalTimerTime = session.totalTimerTime {
+                Text("Total Timer Time: \(formatDuration(UInt32(totalTimerTime)))")
+            }
+            if let totalMovingTime = session.totalMovingTime {
+                Text("Total Moving Time: \(formatDuration(UInt32(totalMovingTime)))")
+            }
+            if let numLaps = session.numLaps {
+                Text("Number of Laps: \(numLaps)")
+            }
         }
         .padding(.bottom)
     }
