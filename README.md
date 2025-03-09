@@ -16,20 +16,46 @@ A Swift library for parsing Garmin FIT (Flexible and Interoperable Data Transfer
 
 ## Installation
 
-Add this package to your project using Swift Package Manager:
+Add this package to your project using Swift Package Manager by adding it to your `Package.swift`:
 
 ```swift
-dependencies: [
-    .package(url: "https://github.com/deepsealabs/fit-parser-swift.git", from: "1.2.0")
-]
+// swift-tools-version:5.5
+
+import PackageDescription
+
+let package = Package(
+    name: "YourProject",
+    platforms: [
+        .macOS(.v11),
+        .iOS(.v14)
+    ],
+    products: [
+        .library(
+            name: "YourProject",
+            targets: ["YourProject"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/deepsealabs/fit-parser-swift.git", from: "1.2.0")
+    ],
+    targets: [
+        .target(
+            name: "YourProject",
+            dependencies: ["FITParser"])
+    ]
+)
 ```
+
+Or if you're using Xcode:
+1. Go to File > Add Packages...
+2. Enter package URL: `https://github.com/deepsealabs/fit-parser-swift.git`
+3. Select version: `1.2.0` or higher
 
 ## Usage
 
 ### Command Line Interface
 
 ```bash
-swift run FITParserCLI path/to/your/dive.fit
+swift run FITParserCLI Sources/FITParser/TestDive4.fit
 ```
 
 ### Library Usage
