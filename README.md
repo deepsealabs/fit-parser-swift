@@ -1,5 +1,9 @@
 # FIT Parser Swift
 
+![GitHub forks](https://img.shields.io/github/forks/deepsealabs/fit-parser-swift?style=social)
+![GitHub stars](https://img.shields.io/github/stars/deepsealabs/fit-parser-swift?style=social)
+![License](https://img.shields.io/github/license/deepsealabs/fit-parser-swift)
+
 A Swift library for parsing Garmin FIT (Flexible and Interoperable Data Transfer) files, specifically focused on dive computer data.
 
 ## Features
