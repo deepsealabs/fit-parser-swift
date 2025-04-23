@@ -14,8 +14,12 @@ struct ContentView: View {
                 
                 if let fitData = fitData {
                     displaySession(fitData.session)
-                    displayDiveSummary(fitData.summary)
-                    displayDiveSettings(fitData.settings)
+                    if let summary = fitData.summary {
+                        displayDiveSummary(summary)
+                    }
+                    if let settings = fitData.settings {
+                        displayDiveSettings(settings)
+                    }
                     displayTankSummaries(fitData.tankSummaries)
                     displayTankUpdates(fitData.tankUpdates)
                 }

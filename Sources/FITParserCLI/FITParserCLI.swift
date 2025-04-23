@@ -34,16 +34,35 @@ public struct FITParserCLI {
 
         switch result {
         case .success(let fitData):
+            displayFileIdData(fitData.fileId)
             displaySessionData(fitData.session)
-            displaySummaryData(fitData.summary)
-            displaySettingsData(fitData.settings)
+            if let summary = fitData.summary {
+                displaySummaryData(summary)
+            }
+            if let settings = fitData.settings {
+                displaySettingsData(settings)
+            }
             displayTankSummaries(fitData.tankSummaries)
             displayTankUpdates(fitData.tankUpdates)
             displayDivePoints(fitData.divePoints)
             displayDiveAlerts(fitData.diveAlerts)
             displayDiveGases(fitData.diveGases)
+            displayLapData(fitData.laps)
         case .failure(let error):
             print("Error parsing FIT file: \(error.localizedDescription)")
+        }
+    }
+
+    private static func displayFileIdData(_ fileId: FITParser.FileIdData?) {
+        print("\n=== File ID ===")
+        if let fileId = fileId {
+            print("Type:", fileId.type ?? "nil")
+            print("Manufacturer:", fileId.manufacturer ?? "nil")
+            print("Product ID:", fileId.product.map { String($0) } ?? "nil")
+            print("Time Created:", fileId.timeCreated?.description ?? "nil")
+            // Note: Product Name usually comes from Device Info message
+        } else {
+            print("File ID message not found.")
         }
     }
 
@@ -161,6 +180,34 @@ public struct FITParserCLI {
             print("Oxygen Content:", gas.oxygenContent.map { "\($0)%" } ?? "nil")
             print("Status:", gas.status ?? "nil")
             print("Mode:", gas.mode ?? "nil")
+        }
+    }
+
+    private static func displayLapData(_ laps: [FITParser.LapData]) {
+        print("\n=== Lap Data (\(laps.count) laps) ===")
+        for (index, lap) in laps.enumerated() {
+            print("\nLap #\(index + 1):")
+            print("Timestamp:", lap.timestamp?.description ?? "nil")
+            print("Start Time:", lap.startTime?.description ?? "nil")
+            if let coords = lap.startCoordinates {
+                print("Start Coordinates: (\(coords.latitude), \(coords.longitude))")
+            } else {
+                print("Start Coordinates: nil")
+            }
+            if let coords = lap.endCoordinates {
+                print("End Coordinates: (\(coords.latitude), \(coords.longitude))")
+            } else {
+                print("End Coordinates: nil")
+            }
+            print("Total Elapsed Time:", lap.totalElapsedTime.map { String(format: "%.1f seconds", $0) } ?? "nil")
+            print("Total Timer Time:", lap.totalTimerTime.map { String(format: "%.1f seconds", $0) } ?? "nil")
+            print("Total Distance:", lap.totalDistance.map { String(format: "%.2f m", $0) } ?? "nil")
+            print("Max Speed:", lap.maxSpeed.map { String(format: "%.2f km/h", $0) } ?? "nil")
+            print("Avg Speed:", lap.avgSpeed.map { String(format: "%.2f km/h", $0) } ?? "nil")
+            print("Max Altitude:", lap.maxAltitude.map { String(format: "%.1f m", $0) } ?? "nil")
+            print("Avg Altitude:", lap.avgAltitude.map { String(format: "%.1f m", $0) } ?? "nil")
+            print("Max Depth:", lap.maxDepth.map { String(format: "%.1f m", $0) } ?? "nil")
+            print("Avg Depth:", lap.avgDepth.map { String(format: "%.1f m", $0) } ?? "nil")
         }
     }
 }

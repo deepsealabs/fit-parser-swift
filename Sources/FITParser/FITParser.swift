@@ -43,13 +43,31 @@ public struct FITParser {
     }
 
     public let session: SessionData
-    public let summary: SummaryData
-    public let settings: SettingsData
+    public let summary: SummaryData?
+    public let settings: SettingsData?
     public let tankSummaries: [TankSummaryData]
     public let tankUpdates: [TankUpdateData]
     public let divePoints: [DivePoint]
     public let diveAlerts: [DiveAlert]
     public let diveGases: [DiveGas]
+    public let laps: [LapData]
+    public let fileId: FileIdData?
+    
+    public struct LapData {
+        public let timestamp: Date?
+        public let startTime: Date?
+        public let startCoordinates: (latitude: Double, longitude: Double)?
+        public let endCoordinates: (latitude: Double, longitude: Double)?
+        public let totalElapsedTime: Float?
+        public let totalTimerTime: Float?
+        public let totalDistance: Float?
+        public let maxSpeed: Float?
+        public let avgSpeed: Float?
+        public let maxAltitude: Float?
+        public let avgAltitude: Float?
+        public let maxDepth: Float?
+        public let avgDepth: Float?
+    }
     
     public struct SessionData {
         public let startTime: Date?
@@ -118,10 +136,19 @@ public struct FITParser {
         public let pressure: Float?
     }
     
-    private init(session: SessionData, summary: SummaryData, settings: SettingsData, 
+    public struct FileIdData {
+        public let type: String?
+        public let manufacturer: String?
+        public let product: UInt16?
+        public let serialNumber: UInt32?
+        public let timeCreated: Date?
+    }
+    
+    private init(session: SessionData, summary: SummaryData?, settings: SettingsData?, 
                 tankSummaries: [TankSummaryData], tankUpdates: [TankUpdateData], 
                 divePoints: [DivePoint], diveAlerts: [DiveAlert], diveGases: [DiveGas],
-                deviceInfo: [FITDeviceInfoMesg]) {
+                deviceInfo: [FITDeviceInfoMesg], laps: [LapData],
+                fileId: FileIdData?) {
         self.session = session
         self.summary = summary
         self.settings = settings
@@ -130,6 +157,8 @@ public struct FITParser {
         self.divePoints = divePoints
         self.diveAlerts = diveAlerts
         self.diveGases = diveGases
+        self.laps = laps
+        self.fileId = fileId
     }
     
     public static func parse(fitFilePath: String) -> Result<FITParser, Error> {
@@ -152,15 +181,17 @@ public struct FITParser {
         let events = listener.messages.getEventMesgs()
         let gases = listener.messages.getDiveGasMesgs()
         let deviceInfo = listener.messages.getDeviceInfoMesgs()
+        let laps = listener.messages.getLapMesgs()
+        let fileIds = listener.messages.getFileIdMesgs()
         
-        guard let session = sessions.first,
-              let summary = summaries.first,
-              let setting = settings.first else {
+        guard let session = sessions.first else {
             return .failure(NSError(domain: "FITParserError", code: 2, 
-                                  userInfo: [NSLocalizedDescriptionKey: "Failed to extract data from FIT file"]))
+                                  userInfo: [NSLocalizedDescriptionKey: "Failed to extract essential session data from FIT file"]))
         }
         
-        // Convert session message to SessionData
+        let summary = summaries.first
+        let setting = settings.first
+
         let startTime = session.isTimestampValid() ? FITDate.date(from: session.getTimestamp()) : nil
         let divFactor = Double(Int32.max) / 180.0
 
@@ -194,30 +225,31 @@ public struct FITParser {
             numLaps: session.isNumLapsValid() ? UInt16(session.getNumLaps()) : nil
         )
 
-        // Convert summary message to SummaryData
-        let summaryData = SummaryData(
-            timestamp: summary.isTimestampValid() ? FITDate.date(from: summary.getTimestamp()) : nil,
-            diveNumber: summary.isDiveNumberValid() ? UInt16(summary.getDiveNumber()) : nil,
-            maxDepth: summary.isMaxDepthValid() ? summary.getMaxDepth() : nil,
-            surfaceInterval: summary.isSurfaceIntervalValid() ? summary.getSurfaceInterval() : nil,
-            descentTime: summary.isDescentTimeValid() ? summary.getDescentTime() : nil,
-            ascentTime: summary.isAscentTimeValid() ? summary.getAscentTime() : nil,
-            bottomTime: summary.isBottomTimeValid() ? UInt32(summary.getBottomTime()) : nil
-        )
+        let summaryData: SummaryData? = summary.map { summaryMsg in
+            SummaryData(
+                timestamp: summaryMsg.isTimestampValid() ? FITDate.date(from: summaryMsg.getTimestamp()) : nil,
+                diveNumber: summaryMsg.isDiveNumberValid() ? UInt16(summaryMsg.getDiveNumber()) : nil,
+                maxDepth: summaryMsg.isMaxDepthValid() ? summaryMsg.getMaxDepth() : nil,
+                surfaceInterval: summaryMsg.isSurfaceIntervalValid() ? summaryMsg.getSurfaceInterval() : nil,
+                descentTime: summaryMsg.isDescentTimeValid() ? summaryMsg.getDescentTime() : nil,
+                ascentTime: summaryMsg.isAscentTimeValid() ? summaryMsg.getAscentTime() : nil,
+                bottomTime: summaryMsg.isBottomTimeValid() ? UInt32(summaryMsg.getBottomTime()) : nil
+            )
+        }
 
-        // Convert settings message to SettingsData
-        let settingsData = SettingsData(
-            waterType: setting.isWaterTypeValid() ? formatWaterType(setting.getWaterType()) : nil,
-            waterDensity: setting.isWaterDensityValid() ? setting.getWaterDensity() : nil,
-            gfLow: setting.isGfLowValid() ? setting.getGfLow() : nil,
-            gfHigh: setting.isGfHighValid() ? setting.getGfHigh() : nil,
-            po2Warn: setting.isPo2WarnValid() ? setting.getPo2Warn() : nil,
-            po2Critical: setting.isPo2CriticalValid() ? setting.getPo2Critical() : nil,
-            safetyStopEnabled: setting.isSafetyStopEnabledValid() ? setting.getSafetyStopEnabled() == 1 : nil,
-            bottomDepth: setting.isBottomDepthValid() ? setting.getBottomDepth() : nil
-        )
+        let settingsData: SettingsData? = setting.map { settingMsg in
+            SettingsData(
+                waterType: settingMsg.isWaterTypeValid() ? formatWaterType(settingMsg.getWaterType()) : nil,
+                waterDensity: settingMsg.isWaterDensityValid() ? settingMsg.getWaterDensity() : nil,
+                gfLow: settingMsg.isGfLowValid() ? settingMsg.getGfLow() : nil,
+                gfHigh: settingMsg.isGfHighValid() ? settingMsg.getGfHigh() : nil,
+                po2Warn: settingMsg.isPo2WarnValid() ? settingMsg.getPo2Warn() : nil,
+                po2Critical: settingMsg.isPo2CriticalValid() ? settingMsg.getPo2Critical() : nil,
+                safetyStopEnabled: settingMsg.isSafetyStopEnabledValid() ? settingMsg.getSafetyStopEnabled() == 1 : nil,
+                bottomDepth: settingMsg.isBottomDepthValid() ? settingMsg.getBottomDepth() : nil
+            )
+        }
 
-        // Convert tank summaries
         let tankSummariesData = tankSummaries.map { summary in
             TankSummaryData(
                 timestamp: summary.isTimestampValid() ? FITDate.date(from: summary.getTimestamp()) : nil,
@@ -228,12 +260,83 @@ public struct FITParser {
             )
         }
 
-        // Convert tank updates
         let tankUpdatesData = tankUpdates.map { update in
             TankUpdateData(
                 timestamp: update.isTimestampValid() ? FITDate.date(from: update.getTimestamp()) : nil,
                 sensor: update.isSensorValid() ? update.getSensor() : nil,
                 pressure: update.isPressureValid() ? update.getPressure() : nil
+            )
+        }
+
+        var lapsData = laps.map { lapMsg -> LapData in
+            let divFactor = Double(Int32.max) / 180.0
+            let startCoords = lapMsg.isStartPositionLatValid() && lapMsg.isStartPositionLongValid() ? 
+                (Double(lapMsg.getStartPositionLat()) / divFactor,
+                 Double(lapMsg.getStartPositionLong()) / divFactor) : nil
+            let endCoords = lapMsg.isEndPositionLatValid() && lapMsg.isEndPositionLongValid() ? 
+                (Double(lapMsg.getEndPositionLat()) / divFactor,
+                 Double(lapMsg.getEndPositionLong()) / divFactor) : nil
+
+            return LapData(
+                timestamp: lapMsg.isTimestampValid() ? FITDate.date(from: lapMsg.getTimestamp()) : nil,
+                startTime: lapMsg.isStartTimeValid() ? FITDate.date(from: lapMsg.getStartTime()) : nil,
+                startCoordinates: startCoords,
+                endCoordinates: endCoords,
+                totalElapsedTime: lapMsg.isTotalElapsedTimeValid() ? lapMsg.getTotalElapsedTime() : nil,
+                totalTimerTime: lapMsg.isTotalTimerTimeValid() ? lapMsg.getTotalTimerTime() : nil,
+                totalDistance: lapMsg.isTotalDistanceValid() ? lapMsg.getTotalDistance() : nil,
+                maxSpeed: lapMsg.isMaxSpeedValid() ? lapMsg.getMaxSpeed() : nil,
+                avgSpeed: lapMsg.isAvgSpeedValid() ? lapMsg.getAvgSpeed() : nil,
+                maxAltitude: lapMsg.isMaxAltitudeValid() ? lapMsg.getMaxAltitude() : nil,
+                avgAltitude: lapMsg.isAvgAltitudeValid() ? lapMsg.getAvgAltitude() : nil,
+                maxDepth: lapMsg.isMaxDepthValid() ? lapMsg.getMaxDepth() : nil,
+                avgDepth: lapMsg.isAvgDepthValid() ? lapMsg.getAvgDepth() : nil
+            )
+        }
+
+        // If no laps were found in the file, generate one from the session data
+        if lapsData.isEmpty {
+            var generatedStartCoords = startCoords 
+            if generatedStartCoords == nil {
+                if let firstRecordWithCoords = records.first(where: { $0.isPositionLatValid() && $0.isPositionLongValid() }) {
+                    generatedStartCoords = (Double(firstRecordWithCoords.getPositionLat()) / divFactor,
+                                            Double(firstRecordWithCoords.getPositionLong()) / divFactor)
+                }
+            }
+            
+            var generatedEndCoords = endCoords 
+            if generatedEndCoords == nil {
+                if let lastRecordWithCoords = records.last(where: { $0.isPositionLatValid() && $0.isPositionLongValid() }) {
+                    generatedEndCoords = (Double(lastRecordWithCoords.getPositionLat()) / divFactor,
+                                          Double(lastRecordWithCoords.getPositionLong()) / divFactor)
+                }
+            }
+
+            let generatedLap = LapData(
+                timestamp: session.isTimestampValid() ? FITDate.date(from: session.getTimestamp()) : nil, 
+                startTime: session.isStartTimeValid() ? FITDate.date(from: session.getStartTime()) : nil,
+                startCoordinates: generatedStartCoords, // Use potentially derived start coords
+                endCoordinates: generatedEndCoords, // Use potentially derived end coords
+                totalElapsedTime: session.isTotalElapsedTimeValid() ? session.getTotalElapsedTime() : nil,
+                totalTimerTime: session.isTotalTimerTimeValid() ? session.getTotalTimerTime() : nil,
+                totalDistance: session.isTotalDistanceValid() ? session.getTotalDistance() : nil,
+                maxSpeed: session.isMaxSpeedValid() ? session.getMaxSpeed() : nil,
+                avgSpeed: session.isAvgSpeedValid() ? session.getAvgSpeed() : nil,
+                maxAltitude: session.isMaxAltitudeValid() ? session.getMaxAltitude() : nil,
+                avgAltitude: session.isAvgAltitudeValid() ? session.getAvgAltitude() : nil,
+                maxDepth: session.isMaxDepthValid() ? session.getMaxDepth() : nil,
+                avgDepth: session.isAvgDepthValid() ? session.getAvgDepth() : nil
+            )
+            lapsData = [generatedLap]
+        }
+
+        let fileIdData: FileIdData? = fileIds.first.map { fileIdMsg in
+            FileIdData(
+                type: fileIdMsg.isTypeValid() ? formatFileType(fileIdMsg.getType()) : nil,
+                manufacturer: fileIdMsg.isManufacturerValid() ? formatManufacturer(fileIdMsg.getManufacturer()) : nil,
+                product: fileIdMsg.isProductValid() ? fileIdMsg.getProduct() : nil,
+                serialNumber: fileIdMsg.isSerialNumberValid() ? fileIdMsg.getSerialNumber() : nil,
+                timeCreated: fileIdMsg.isTimeCreatedValid() ? FITDate.date(from: fileIdMsg.getTimeCreated()) : nil
             )
         }
 
@@ -281,7 +384,9 @@ public struct FITParser {
                     mode: gas.isModeValid() ? FITParser.formatGasMode(gas.getMode()) : nil
                 )
             },
-            deviceInfo: deviceInfo
+            deviceInfo: deviceInfo,
+            laps: lapsData,
+            fileId: fileIdData
         )
         return .success(fitParser)
     }
@@ -443,6 +548,102 @@ public struct FITParser {
             return "Warning Code \(data)"
         default:
             return "\(data)"
+        }
+    }
+    
+    static private func formatFileType(_ type: FITFile) -> String {
+        switch type {
+        case FITFileDevice: return "Device"
+        case FITFileSettings: return "Settings"
+        case FITFileSport: return "Sport"
+        case FITFileActivity: return "Activity"
+        case FITFileWorkout: return "Workout"
+        case FITFileCourse: return "Course"
+        case FITFileSchedules: return "Schedules"
+        case FITFileWeight: return "Weight"
+        case FITFileTotals: return "Totals"
+        case FITFileGoals: return "Goals"
+        case FITFileBloodPressure: return "Blood Pressure"
+        case FITFileMonitoringA: return "Monitoring A"
+        case FITFileActivitySummary: return "Activity Summary"
+        case FITFileMonitoringDaily: return "Monitoring Daily"
+        case FITFileMonitoringB: return "Monitoring B"
+        case FITFileSegment: return "Segment"
+        case FITFileSegmentList: return "Segment List"
+        case FITFileExdConfiguration: return "Exd Configuration"
+        case FITFileMfgRangeMin: return "Mfg Range Min (0xF7)"
+        case FITFileMfgRangeMax: return "Mfg Range Max (0xFE)"
+        default:
+            return "Unknown File Type (\(type))"
+        }
+    }
+
+    static private func formatManufacturer(_ manufacturer: FITManufacturer) -> String {
+        switch manufacturer {
+        case FITManufacturerGarmin: return "Garmin"
+        case FITManufacturerGarminFr405Antfs: return "Garmin FR405 Antfs"
+        case FITManufacturerZephyr: return "Zephyr"
+        case FITManufacturerDayton: return "Dayton"
+        case FITManufacturerIdt: return "IDT"
+        case FITManufacturerSrm: return "SRM"
+        case FITManufacturerQuarq: return "Quarq"
+        case FITManufacturerIbike: return "iBike"
+        case FITManufacturerSaris: return "Saris"
+        case FITManufacturerSparkHk: return "Spark HK"
+        case FITManufacturerTanita: return "Tanita"
+        case FITManufacturerEchowell: return "Echowell"
+        case FITManufacturerDynastreamOem: return "Dynastream OEM"
+        case FITManufacturerNautilus: return "Nautilus"
+        case FITManufacturerBontrager: return "Bontrager"
+        case FITManufacturerTheHurtBox: return "The Hurt Box"
+        case FITManufacturerCitizenSystems: return "Citizen Systems"
+        case FITManufacturerMagellan: return "Magellan"
+        case FITManufacturerOsynce: return "Osynce"
+        case FITManufacturerHolux: return "Holux"
+        case FITManufacturerConcept2: return "Concept2"
+        case FITManufacturerShimano: return "Shimano"
+        case FITManufacturerOneGiantLeap: return "One Giant Leap"
+        case FITManufacturerAceSensor: return "Ace Sensor"
+        case FITManufacturerBrimBrothers: return "Brim Brothers"
+        case FITManufacturerXplova: return "Xplova"
+        case FITManufacturerPerceptionDigital: return "Perception Digital"
+        case FITManufacturerBf1systems: return "BF1 Systems"
+        case FITManufacturerPioneer: return "Pioneer"
+        case FITManufacturerSpantec: return "Spantec"
+        case FITManufacturerMetalogics: return "Metalogics"
+        case FITManufacturerSeikoEpson: return "Seiko Epson"
+        case FITManufacturerSeikoEpsonOem: return "Seiko Epson OEM"
+        case FITManufacturerIforPowell: return "Ifor Powell"
+        case FITManufacturerMaxwellGuider: return "Maxwell Guider"
+        case FITManufacturerStarTrac: return "Star Trac"
+        case FITManufacturerBreakaway: return "Breakaway"
+        case FITManufacturerAlatechTechnologyLtd: return "Alatech Technology Ltd"
+        case FITManufacturerMioTechnologyEurope: return "Mio Technology Europe"
+        case FITManufacturerRotor: return "Rotor"
+        case FITManufacturerGeonaute: return "Geonaute"
+        case FITManufacturerIdBike: return "IdBike"
+        case FITManufacturerSpecialized: return "Specialized"
+        case FITManufacturerWtek: return "Wtek"
+        case FITManufacturerPhysicalEnterprises: return "Physical Enterprises"
+        case FITManufacturerNorthPoleEngineering: return "North Pole Engineering"
+        case FITManufacturerBkool: return "Bkool"
+        case FITManufacturerCateye: return "Cateye"
+        case FITManufacturerStagesCycling: return "Stages Cycling"
+        case FITManufacturerSigmasport: return "SigmaSport"
+        case FITManufacturerTomtom: return "TomTom"
+        case FITManufacturerPeripedal: return "Peripedal"
+        case FITManufacturerWattbike: return "Wattbike"
+        case FITManufacturerMoxy: return "Moxy"
+        case FITManufacturerCiclosport: return "Ciclosport"
+        case FITManufacturerPowerbahn: return "Powerbahn"
+        case FITManufacturerAcornProjectsAps: return "Acorn Projects ApS"
+        case FITManufacturerLifebeam: return "Lifebeam"
+        case FITManufacturerLezyne: return "Lezyne"
+        case FITManufacturerSuunto: return "Suunto"
+        case FITManufacturerDevelopment: return "Development"
+        case FITManufacturerActigraphcorp: return "ActiGraphCorp"
+        default:
+            return "Unknown Manufacturer (\(manufacturer))"
         }
     }
     
