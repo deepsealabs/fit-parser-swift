@@ -33,13 +33,18 @@ public struct FITParser {
         public let mode: String?    // "closed circuit diluent" or "open circuit"
     }
 
-    public struct DeviceStatus {
+    public struct DeviceInfoData {
         public let timestamp: Date?
-        public let deviceType: FITUInt8?
+        public let deviceIndex: UInt8?
+        public let deviceType: UInt8? // Use raw value or map later
+        public let manufacturer: String?
+        public let serialNumber: UInt32?
+        public let product: UInt16?
         public let productName: String?
-        public let batteryStatus: FITBatteryStatus?
-        public let batteryVoltage: FITFloat32?
-        public let batteryLevel: FITUInt8?
+        public let softwareVersion: Float?
+        public let hardwareVersion: UInt8?
+        public let batteryVoltage: Float?
+        public let batteryStatus: String? // Mapped value
     }
 
     public let session: SessionData
@@ -52,6 +57,7 @@ public struct FITParser {
     public let diveGases: [DiveGas]
     public let laps: [LapData]
     public let fileId: FileIdData?
+    public let deviceInfo: [DeviceInfoData]
     
     public struct LapData {
         public let timestamp: Date?
@@ -147,7 +153,7 @@ public struct FITParser {
     private init(session: SessionData, summary: SummaryData?, settings: SettingsData?, 
                 tankSummaries: [TankSummaryData], tankUpdates: [TankUpdateData], 
                 divePoints: [DivePoint], diveAlerts: [DiveAlert], diveGases: [DiveGas],
-                deviceInfo: [FITDeviceInfoMesg], laps: [LapData],
+                deviceInfo: [DeviceInfoData], laps: [LapData],
                 fileId: FileIdData?) {
         self.session = session
         self.summary = summary
@@ -157,6 +163,7 @@ public struct FITParser {
         self.divePoints = divePoints
         self.diveAlerts = diveAlerts
         self.diveGases = diveGases
+        self.deviceInfo = deviceInfo
         self.laps = laps
         self.fileId = fileId
     }
@@ -180,7 +187,7 @@ public struct FITParser {
         let records = listener.messages.getRecordMesgs()
         let events = listener.messages.getEventMesgs()
         let gases = listener.messages.getDiveGasMesgs()
-        let deviceInfo = listener.messages.getDeviceInfoMesgs()
+        let deviceInfoMsgs = listener.messages.getDeviceInfoMesgs()
         let laps = listener.messages.getLapMesgs()
         let fileIds = listener.messages.getFileIdMesgs()
         
@@ -211,7 +218,7 @@ public struct FITParser {
             minTemperature: session.isMinTemperatureValid() ? Float(session.getMinTemperature()) : nil,
             avgTemperature: session.isAvgTemperatureValid() ? Float(session.getAvgTemperature()) : nil,
             totalElapsedTime: session.isTotalElapsedTimeValid() ? session.getTotalElapsedTime() : nil,
-            maxDepth: session.isTotalDescentValid() ? Float(session.getTotalDescent()) : nil,
+            maxDepth: session.isMaxDepthValid() ? session.getMaxDepth() : nil,
             diveNumber: session.isNumLapsValid() ? UInt16(session.getNumLaps()) : nil,
             entryType: nil,
             diveTime: session.isTotalTimerTimeValid() ? UInt32(session.getTotalTimerTime()) : nil,
@@ -294,9 +301,8 @@ public struct FITParser {
             )
         }
 
-        // If no laps were found in the file, generate one from the session data
         if lapsData.isEmpty {
-            var generatedStartCoords = startCoords 
+            var generatedStartCoords = startCoords
             if generatedStartCoords == nil {
                 if let firstRecordWithCoords = records.first(where: { $0.isPositionLatValid() && $0.isPositionLongValid() }) {
                     generatedStartCoords = (Double(firstRecordWithCoords.getPositionLat()) / divFactor,
@@ -304,7 +310,7 @@ public struct FITParser {
                 }
             }
             
-            var generatedEndCoords = endCoords 
+            var generatedEndCoords = endCoords
             if generatedEndCoords == nil {
                 if let lastRecordWithCoords = records.last(where: { $0.isPositionLatValid() && $0.isPositionLongValid() }) {
                     generatedEndCoords = (Double(lastRecordWithCoords.getPositionLat()) / divFactor,
@@ -312,20 +318,44 @@ public struct FITParser {
                 }
             }
 
+            // Calculate max depth from records if session/lap maxDepth is not available
+            var generatedMaxDepth: Float? = session.isMaxDepthValid() ? session.getMaxDepth() : nil
+            if generatedMaxDepth == nil {
+                generatedMaxDepth = records.compactMap { $0.isDepthValid() ? $0.getDepth() : nil }.max()
+            }
+            
+            // Get avg depth from session, fallback to calculating from records
+            var generatedAvgDepth: Float? = session.isAvgDepthValid() ? session.getAvgDepth() : nil
+            if generatedAvgDepth == nil { // Only calculate if session didn't provide it
+                let validDepths = records.compactMap { $0.isDepthValid() ? $0.getDepth() : nil }
+                if !validDepths.isEmpty {
+                    generatedAvgDepth = validDepths.reduce(0, +) / Float(validDepths.count)
+                }
+            }
+
+            // Get avg altitude from session, fallback to calculating from records
+            var generatedAvgAltitude: Float? = session.isAvgAltitudeValid() ? session.getAvgAltitude() : nil
+            if generatedAvgAltitude == nil { // Only calculate if session didn't provide it
+                let validAltitudes = records.compactMap { $0.isAltitudeValid() ? $0.getAltitude() : nil }
+                if !validAltitudes.isEmpty {
+                    generatedAvgAltitude = validAltitudes.reduce(0, +) / Float(validAltitudes.count)
+                }
+            }
+
             let generatedLap = LapData(
-                timestamp: session.isTimestampValid() ? FITDate.date(from: session.getTimestamp()) : nil, 
+                timestamp: session.isTimestampValid() ? FITDate.date(from: session.getTimestamp()) : nil,
                 startTime: session.isStartTimeValid() ? FITDate.date(from: session.getStartTime()) : nil,
-                startCoordinates: generatedStartCoords, // Use potentially derived start coords
-                endCoordinates: generatedEndCoords, // Use potentially derived end coords
+                startCoordinates: generatedStartCoords,
+                endCoordinates: generatedEndCoords,
                 totalElapsedTime: session.isTotalElapsedTimeValid() ? session.getTotalElapsedTime() : nil,
                 totalTimerTime: session.isTotalTimerTimeValid() ? session.getTotalTimerTime() : nil,
                 totalDistance: session.isTotalDistanceValid() ? session.getTotalDistance() : nil,
                 maxSpeed: session.isMaxSpeedValid() ? session.getMaxSpeed() : nil,
                 avgSpeed: session.isAvgSpeedValid() ? session.getAvgSpeed() : nil,
                 maxAltitude: session.isMaxAltitudeValid() ? session.getMaxAltitude() : nil,
-                avgAltitude: session.isAvgAltitudeValid() ? session.getAvgAltitude() : nil,
-                maxDepth: session.isMaxDepthValid() ? session.getMaxDepth() : nil,
-                avgDepth: session.isAvgDepthValid() ? session.getAvgDepth() : nil
+                avgAltitude: generatedAvgAltitude, // Use potentially calculated avg altitude
+                maxDepth: generatedMaxDepth, // Use potentially calculated max depth
+                avgDepth: generatedAvgDepth // Use potentially calculated avg depth
             )
             lapsData = [generatedLap]
         }
@@ -337,6 +367,22 @@ public struct FITParser {
                 product: fileIdMsg.isProductValid() ? fileIdMsg.getProduct() : nil,
                 serialNumber: fileIdMsg.isSerialNumberValid() ? fileIdMsg.getSerialNumber() : nil,
                 timeCreated: fileIdMsg.isTimeCreatedValid() ? FITDate.date(from: fileIdMsg.getTimeCreated()) : nil
+            )
+        }
+
+        let deviceInfoData = deviceInfoMsgs.map { info -> DeviceInfoData in
+            DeviceInfoData(
+                timestamp: info.isTimestampValid() ? FITDate.date(from: info.getTimestamp()) : nil,
+                deviceIndex: info.isDeviceIndexValid() ? info.getDeviceIndex() : nil,
+                deviceType: info.isDeviceTypeValid() ? info.getDeviceType() : nil,
+                manufacturer: info.isManufacturerValid() ? formatManufacturer(info.getManufacturer()) : nil,
+                serialNumber: info.isSerialNumberValid() ? info.getSerialNumber() : nil,
+                product: info.isProductValid() ? info.getProduct() : nil,
+                productName: info.isProductNameValid() ? info.getProductName() : nil,
+                softwareVersion: info.isSoftwareVersionValid() ? info.getSoftwareVersion() : nil,
+                hardwareVersion: info.isHardwareVersionValid() ? info.getHardwareVersion() : nil,
+                batteryVoltage: info.isBatteryVoltageValid() ? info.getBatteryVoltage() : nil,
+                batteryStatus: info.isBatteryStatusValid() ? formatBatteryStatus(info.getBatteryStatus()) : nil
             )
         }
 
@@ -363,14 +409,14 @@ public struct FITParser {
             },
             diveAlerts: events.compactMap { event in
                 if event.isEventValid() && event.isEventTypeValid() {
-                    let eventName = FITParser.formatEvent(event.getEvent())
+                    let eventName = formatEvent(event.getEvent())
                     let data = event.isDataValid() ? event.getData() : nil
                     return DiveAlert(
                         timestamp: event.isTimestampValid() ? FITDate.date(from: event.getTimestamp()) : nil,
                         event: eventName,
-                        eventType: FITParser.formatEventType(event.getEventType()),
+                        eventType: formatEventType(event.getEventType()),
                         data: data,
-                        interpretedData: data.map { FITParser.formatDiveAlertData(event.getEvent(), $0) }
+                        interpretedData: data.map { formatDiveAlertData(event.getEvent(), $0) }
                     )
                 }
                 return nil
@@ -380,11 +426,11 @@ public struct FITParser {
                     messageIndex: gas.isMessageIndexValid() ? gas.getMessageIndex() : nil,
                     heliumContent: gas.isHeliumContentValid() ? gas.getHeliumContent() : nil,
                     oxygenContent: gas.isOxygenContentValid() ? gas.getOxygenContent() : nil,
-                    status: gas.isStatusValid() ? FITParser.formatGasStatus(gas.getStatus()) : nil,
-                    mode: gas.isModeValid() ? FITParser.formatGasMode(gas.getMode()) : nil
+                    status: gas.isStatusValid() ? formatGasStatus(gas.getStatus()) : nil,
+                    mode: gas.isModeValid() ? formatGasMode(gas.getMode()) : nil
                 )
             },
-            deviceInfo: deviceInfo,
+            deviceInfo: deviceInfoData,
             laps: lapsData,
             fileId: fileIdData
         )
@@ -652,5 +698,18 @@ public struct FITParser {
         let minutes = (seconds % 3600) / 60
         let remainingSeconds = seconds % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
+    }
+
+    static private func formatBatteryStatus(_ status: FITBatteryStatus) -> String {
+        switch status {
+        case FITBatteryStatusNew: return "New"
+        case FITBatteryStatusGood: return "Good"
+        case FITBatteryStatusOk: return "OK"
+        case FITBatteryStatusLow: return "Low"
+        case FITBatteryStatusCritical: return "Critical"
+        case FITBatteryStatusCharging: return "Charging"
+        case FITBatteryStatusUnknown: return "Unknown"
+        default: return "Invalid (\(status))"
+        }
     }
 }
